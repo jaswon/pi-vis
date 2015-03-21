@@ -1,0 +1,154 @@
+<html>
+    <head>
+        <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+        <title>Pi Visualizer</title>
+        <style>
+            body {
+                margin: 0;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="main"></canvas>
+    </body>
+    <script charset="utf-8">
+
+    //rAF polyfill
+    (function() {
+        var lastTime = 0;
+        var vendors = ['webkit', 'moz'];
+        for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+            window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+            window.cancelAnimationFrame =
+              window[vendors[x]+'CancelAnimationFrame'] || window[vendors[x]+'CancelRequestAnimationFrame'];
+        }
+
+        if (!window.requestAnimationFrame)
+            window.requestAnimationFrame = function(callback, element) {
+                var currTime = new Date().getTime();
+                var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+                var id = window.setTimeout(function() { callback(currTime + timeToCall); },
+                  timeToCall);
+                lastTime = currTime + timeToCall;
+                return id;
+            };
+
+        if (!window.cancelAnimationFrame)
+            window.cancelAnimationFrame = function(id) {
+                clearTimeout(id);
+            };
+    }());
+
+    console.log("halp");
+        //constants
+        var fpi = Math.PI/5;
+        var buffer = Math.PI/100;
+        var numsize = 5000
+
+        var checked1 = false;
+        var checked2 = false;
+
+        //get canvas
+        var cvs = document.getElementById("main");
+        var ctx = cvs.getContext("2d");
+        cvs.width = window.innerWidth;
+        cvs.height = window.innerHeight;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font="30px Arial";
+
+        var circle = {
+            x: cvs.width/2,
+            y: cvs.height/2
+        }
+        circle.r = Math.min(circle.x,circle.y)*0.9;
+
+        ctx.fillRect(0,0,cvs.width,cvs.height);
+
+        //draw circle
+        var drawCircle = function() {
+            ctx.lineWidth=10;
+            for (var i = 0 ; i < 10 ; i++ ){
+                var ang = 3*Math.PI/2+i*fpi;
+                ctx.strokeStyle = 'hsl(' + [i*36, '70%', '50%'] + ')';
+                ctx.beginPath();
+                ctx.arc(circle.x,circle.y,circle.r,ang+buffer,ang+fpi-buffer);
+                ctx.stroke();
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(""+i,circle.x+circle.r*1.1*Math.cos(ang+fpi/2),
+                                  circle.y+circle.r*1.1*Math.sin(ang+fpi/2))
+            }
+            ctx.lineWidth=.1;
+        }
+
+        //get number
+        var numdata = {};
+        var xmlhttp = null;
+
+        xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange=function() {
+            if (xmlhttp.readyState==4 && xmlhttp.status==200){
+               numdata.str = xmlhttp.responseText.substring(0,numsize);
+               numdata.len = numdata.str.length-1;
+               gogogo();
+            }
+        }
+        xmlhttp.open( "GET", "../assets/10000.txt", true );
+        xmlhttp.send();
+
+        //drawing functions
+        var addCurve = function(a,b,s,l,c) {
+            var ebuf = .96;
+            var th_a = a*fpi+buffer+(fpi-2*buffer)*(s/l)-Math.PI/2;
+            var th_b = b*fpi+buffer+(fpi-2*buffer)*(s/l)-Math.PI/2;
+            if (th_a < 0) th_a+=2*Math.PI;
+            if (th_b < 0) th_b+=2*Math.PI;
+            var p_a = {
+                x : circle.r*ebuf*Math.cos(th_a)+circle.x,
+                y : circle.r*ebuf*Math.sin(th_a)+circle.y
+            }
+            var p_b = {
+                x : circle.r*ebuf*Math.cos(th_b)+circle.x,
+                y : circle.r*ebuf*Math.sin(th_b)+circle.y
+            }
+            ctx.strokeStyle='hsl(' + a*36 + ',70%,'+ (70-40*s/l) +'%)';
+
+            ctx.beginPath();
+            ctx.moveTo(p_a.x,p_a.y);
+            var halfangle = Math.min(th_a,th_b)+Math.abs(th_a-th_b)/2;
+            if (Math.abs(th_a-th_b)>Math.PI) halfangle+=Math.PI;
+            ctx.quadraticCurveTo(
+                circle.r*ebuf*Math.cos(halfangle)*c+circle.x,
+                circle.r*ebuf*Math.sin(halfangle)*c+circle.y,
+                // (p_a.x+p_b.x+circle.x)/3,
+                // (p_a.y+p_b.y+circle.y)/3,
+                p_b.x,p_b.y
+
+            );
+            ctx.stroke();
+        }
+
+        var gogogo = function() {
+            var len = numdata.len;
+            var count = 0;
+            drawCircle();
+            ctx.fillText(String.fromCharCode(55349, 57099),circle.x,circle.y)
+
+            //live draw
+            //
+            var animate = function() {
+                var exit = window.requestAnimationFrame( animate );
+                for (var i = 0 ; i < 5 ; i++) {
+                    addCurve(parseInt(numdata.str[count]),parseInt(numdata.str[count+1]),count,len,.2);
+                    count++;
+                    if (numdata.str.substring(count,count+2).trim().length!=2) window.cancelAnimationFrame(exit);
+                }
+            }
+            animate();
+
+        }
+
+
+    </script>
+</html>
